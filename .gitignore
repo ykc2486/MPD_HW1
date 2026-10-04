@@ -1,0 +1,6 @@
+.Xil/
+aquila_soc/
+*.jou
+*.log
+*.str
+test/
