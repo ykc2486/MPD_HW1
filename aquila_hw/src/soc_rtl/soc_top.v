@@ -272,9 +272,7 @@ end
 
 wire [XLEN-1 : 0] profiler_pc;
 wire              profiler_is_mem;
-wire                profiler_sel;
-wire [XLEN-1 : 0]   profiler_dout;
-wire                profiler_ready;
+
 // -----------------------------------------------------------------------------
 //  Aquila processor core.
 //
@@ -313,20 +311,22 @@ aquila_top Aquila_SoC
 // -----------------------------------------------------------------------------
 //  HW#1 Hardware Profiler (與 Aquila_SoC 並列同階)
 // -----------------------------------------------------------------------------
-profiler u_profiler (
-    .clk          (clk),
-    .rst          (rst),
+profiler #(
+    .MAIN_START  (32'h000010c0),
+    .MAIN_RETURN (32'h00003764),
+    .F0_START    (32'h00001af8), .F0_END(32'h00001c28), // crcu8
+    .F1_START    (32'h00002278), .F1_END(32'h000022c4), // core_list_find
+    .F2_START    (32'h000022c4), .F2_END(32'h000022e8), // core_list_reverse
+    .F3_START    (32'h00002be0), .F3_END(32'h00002c94), // matrix_mul_matrix_bitextract
+    .F4_START    (32'h000031e8), .F4_END(32'h00003510)  // core_state_transition
+)
+u_profiler (
+    .clk          (clk),              // 直接接 Aquila SoC 主時脈
+    .rst          (rst),              // 直接接 Aquila SoC 重置訊號
+    .pc           (profiler_pc),      // 接收來自 EX 階段的 PC
+    .is_mem_cycle (profiler_is_mem),  // 接收記憶體操作/Stall 旗標
 
-    .pc           (profiler_pc),
-    .is_mem_cycle (profiler_is_mem),
-
-    .mmio_en      (dev_strobe & profiler_sel),
-    .mmio_we      (dev_we),
-    .mmio_addr    (dev_addr),
-    .mmio_wdata   (dev_din),
-    .mmio_rdata   (profiler_dout),
-    .mmio_ready   (profiler_ready),
-
+    // 計數暫存器輸出（內部已標註 mark_debug，這裡留空即可被 ILA 取樣）
     .total_cycles (),
     .f0_total_cyc (), .f0_mem_cyc (),
     .f1_total_cyc (), .f1_mem_cyc (),
@@ -334,33 +334,6 @@ profiler u_profiler (
     .f3_total_cyc (), .f3_mem_cyc (),
     .f4_total_cyc (), .f4_mem_cyc ()
 );
-
-//always @(posedge clk) begin
-//    if (dev_strobe) begin
-//        $display(
-//            "DEV REQ: addr=%h we=%b din=%h profiler_sel=%b",
-//            dev_addr,
-//            dev_we,
-//            dev_din,
-//            profiler_sel
-//        );
-//    end
-
-//    if (profiler_ready) begin
-//        $display(
-//            "PROF READY: addr=%h profiler_sel=%b dev_ready=%b",
-//            dev_addr,
-//            profiler_sel,
-//            dev_ready
-//        );
-//    end
-//end
-
-//initial begin
-//    $display("=================================");
-//    $display("MY MODIFIED SOC_TOP IS LOADED");
-//    $display("=================================");
-//end
 
 // -----------------------------------------------------------------------------
 //  Device address decoder.
@@ -371,20 +344,11 @@ profiler u_profiler (
 //       [3] 0xC400_0000 - 0xC4FF_FFFF : DSA device
 assign uart_sel  = (dev_addr[XLEN-1:XLEN-8] == 8'hC0);
 assign spi_sel   = (dev_addr[XLEN-1:XLEN-8] == 8'hC2);
-
-assign profiler_sel =
-    (dev_addr >= 32'hCB000000) &&
-    (dev_addr <  32'hCB000100);
- 
-assign dev_dout  = (uart_sel)?     uart_dout :
-                   (spi_sel)?      spi_dout :
-                   (profiler_sel)? profiler_dout :
-                                   {XLEN{1'b0}};
-
-assign dev_ready = (uart_sel)?     uart_ready :
-                   (spi_sel)?      spi_ready :
-                   (profiler_sel)? profiler_ready :
-                                   1'b0;
+assign dev_dout  = (uart_sel)? uart_dout :
+                   (spi_sel)? spi_dout :
+                              {XLEN{1'b0}};
+assign dev_ready = (uart_sel)? uart_ready :
+                   (spi_sel)? spi_ready : 1'b0;
 
 // ----------------------------------------------------------------------------
 //  UART Controller with a simple memory-mapped I/O interface.

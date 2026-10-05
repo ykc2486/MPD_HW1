@@ -49,7 +49,7 @@ libelibc.a : $(LIBC_OBJS)
 	$(AR) r libelibc.a $(LIBC_OBJS)
 	rm $^
 
-%.elf: XCFLAGS = -DITERATIONS=0 -DUSE_CLOCK=1
+%.elf: XCFLAGS = -DITERATIONS=5 -DUSE_CLOCK=1
 %.elf: $(OBJS) libelibc.a
 	$(LD) $(LDFLAGS) -T$*_$(MEM_TYPE).ld $(OBJS) -lelibc $(LD_GCC_LIB) -o $@
 	$(OD) $(ODFLAGS) $@ > $*.objdump

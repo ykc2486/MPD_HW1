@@ -74,4 +74,4 @@
 `define NOP 32'h00000013
 
 // SIM_FNAME defines the RISC-V program path of an ELF file for simulation.
-`define SIM_FNAME "C:/MPC/profiler_test.elf"
+`define SIM_FNAME "C:/MPC/dhry.elf"

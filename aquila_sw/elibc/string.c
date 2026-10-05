@@ -58,142 +58,39 @@
 //  Functions that needs to be optimized.
 //
 
-#include <stdint.h>
-
-typedef uint32_t word_t __attribute__((__may_alias__));
-
-static inline uint32_t rv32_haszero(uint32_t x)
-{
-    return (x - UINT32_C(0x01010101)) & ~x & UINT32_C(0x80808080);
-}
-
-static inline void copy_tail(char *dst, uint32_t x)
-{
-    char c = (char)x;
-    *dst++ = c;
-    if (c == '\0') return;
-
-    c = (char)(x >> 8);
-    *dst++ = c;
-    if (c == '\0') return;
-
-    c = (char)(x >> 16);
-    *dst++ = c;
-    if (c == '\0') return;
-
-    *dst = (char)(x >> 24);
-}
-
 char *strcpy(char *dst, char *src)
 {
-    char *ret = dst;
+    char *tmp = dst;
 
-    if ((((uintptr_t)dst ^ (uintptr_t)src) & 3u) == 0) {
-        while (((uintptr_t)src & 3u) != 0) {
-            char c = *src++;
-            *dst++ = c;
-            if (c == '\0')
-                return ret;
-        }
-
-        const word_t *s = (const word_t *)src;
-        word_t *d = (word_t *)dst;
-
-        for (;;) {
-            uint32_t x = s[0];
-            if (rv32_haszero(x)) {
-                copy_tail((char *)d, x);
-                return ret;
-            }
-            d[0] = x;
-
-            x = s[1];
-            if (rv32_haszero(x)) {
-                copy_tail((char *)(d + 1), x);
-                return ret;
-            }
-            d[1] = x;
-
-            s += 2;
-            d += 2;
-        }
-    }
-
-    for (;;) {
-        char c = *src++;
-        *dst++ = c;
-        if (c == '\0')
-            return ret;
-    }
-}
-
-static inline int word_diff(uint32_t a, uint32_t b)
-{
-    unsigned char ca = (unsigned char)a;
-    unsigned char cb = (unsigned char)b;
-    if (ca != cb || ca == 0) return (int)ca - (int)cb;
-
-    ca = (unsigned char)(a >> 8);
-    cb = (unsigned char)(b >> 8);
-    if (ca != cb || ca == 0) return (int)ca - (int)cb;
-
-    ca = (unsigned char)(a >> 16);
-    cb = (unsigned char)(b >> 16);
-    if (ca != cb || ca == 0) return (int)ca - (int)cb;
-
-    ca = (unsigned char)(a >> 24);
-    cb = (unsigned char)(b >> 24);
-    return (int)ca - (int)cb;
+    while (*src) *(tmp++) = *(src++);
+    *tmp = 0;
+    return dst;
 }
 
 int strcmp(char *s1, char *s2)
 {
-    const unsigned char *p = (const unsigned char *)s1;
-    const unsigned char *q = (const unsigned char *)s2;
-
-    if ((((uintptr_t)p ^ (uintptr_t)q) & 3u) == 0) {
-        while (((uintptr_t)p & 3u) != 0) {
-            unsigned int a = *p++;
-            unsigned int b = *q++;
-
-            if (a != b || a == 0)
-                return (int)a - (int)b;
+    int value;
+ 
+    s1--, s2--;
+    do
+    {
+        s1++, s2++;
+        if (*s1 == *s2)
+        {
+            value = 0;
         }
-
-        const word_t *w1 = (const word_t *)p;
-        const word_t *w2 = (const word_t *)q;
-
-        for (;;) {
-            uint32_t a = w1[0];
-            uint32_t b = w2[0];
-
-            if (a != b)
-                return word_diff(a, b);
-
-            if (rv32_haszero(a))
-                return 0;
-
-            a = w1[1];
-            b = w2[1];
-
-            if (a != b)
-                return word_diff(a, b);
-
-            if (rv32_haszero(a))
-                return 0;
-
-            w1 += 2;
-            w2 += 2;
+        else if (*s1 < *s2)
+        {
+            value = -1;
+            break;
         }
-    }
-
-    for (;;) {
-        unsigned int a = *p++;
-        unsigned int b = *q++;
-
-        if (a != b || a == 0)
-            return (int)a - (int)b;
-    }
+        else
+        {
+            value = 1;
+            break;
+        }
+    } while (*s1 != 0 && *s2 != 0);
+    return value;
 }
 
 char *strncpy(char *dst, char *src, size_t n)
